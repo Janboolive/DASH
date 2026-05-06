@@ -235,7 +235,7 @@ const fmtD=d=>{try{return new Date(d).toLocaleDateString('ru',{day:'numeric',mon
 const fmtS=d=>{try{return new Date(d).toLocaleDateString('ru',{day:'numeric',month:'short'})}catch{return d}};
 function stars(n){let h='';for(let i=1;i<=5;i++)h+=`<svg class="star ${i<=Math.round(n)?'f':''}" viewBox="0 0 20 20"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.69l5.34-.78z"/></svg>`;return'<span class="stars">'+h+'</span>'}
 
-// ═══ ЗАГРУЗКА ═══
+// --- ЗАГРУЗКА ---
 async function loadAll(){
   const btn=document.getElementById('refresh-btn');
   btn.classList.add('loading');btn.disabled=true;
@@ -283,7 +283,7 @@ async function loadReviews(){
   }
 }
 
-// ═══ CSAT КАРТОЧКА ═══
+// --- CSAT КАРТОЧКА ---
 function renderCsatCard(){
   // Считаем суммарное по всем источникам
   const csatTotal  = CSAT.total || 0;
@@ -349,7 +349,7 @@ function renderCsatCard(){
     </div>`;
 }
 
-// ═══ СТАТИСТИКА ═══
+// --- СТАТИСТИКА ---
 function getStatsFiltered(){
   let d=[...INSTALLS];
   if(sfDays!=='all'){const c=new Date();c.setDate(c.getDate()-parseInt(sfDays));const s=c.toISOString().slice(0,10);d=d.filter(r=>r.date>=s);}
@@ -422,7 +422,7 @@ function renderStats(){
   document.getElementById('stat-tbody').innerHTML=keys.slice().reverse().slice(0,12).map(k=>{const e=w[k];return`<tr><td><b>${fmtS(k)}</b></td><td class="td-n">${e.dl.toLocaleString()}</td><td style="color:#06b6d4;font-weight:600">${e.asc.toLocaleString()}</td><td style="color:#2d9e6b;font-weight:600">${e.play.toLocaleString()}</td><td style="color:#e63946;font-weight:600">${e.del.toLocaleString()}</td><td class="td-n">${e.active.toLocaleString()}</td><td style="color:#4361ee;font-weight:600">${e.ui.toLocaleString()}</td><td style="color:#e89c0e;font-weight:600">${e.uu.toLocaleString()}</td></tr>`;}).join('');
 }
 
-// ═══ ОТЗЫВЫ ═══
+// --- ОТЗЫВЫ ---
 function getRevFiltered(){
   let d=[...ALL_REVIEWS];
   if(rfPlat!=='all')d=d.filter(r=>r.source===rfPlat);
@@ -432,7 +432,7 @@ function getRevFiltered(){
 
 function renderReviews(){
   const d=getRevFiltered(),t=d.length;
-  const avg=t?(d.reduce((s,r)=>s+r.rating,0)/t).toFixed(1):'—';
+  const avg=t?(d.reduce((s,r)=>s+r.rating,0)/t).toFixed(1):'--';
   const bugs=d.filter(r=>r.category==='Баг').length,praise=d.filter(r=>r.category==='Похвала').length,crit=d.filter(r=>r.priority==='Высокий').length;
 
   document.getElementById('rv-metrics').innerHTML=`
@@ -462,8 +462,8 @@ function renderReviews(){
 
   const gp=d.filter(r=>r.source==='Google Play'),as=d.filter(r=>r.source==='App Store'),tt2=d.length||1;
   document.getElementById('rv-plat-bars').innerHTML=`
-    <div class="bar-h"><div class="bl"><span>🤖 Google Play</span><span>${gp.length} · ${gp.length?(gp.reduce((s,r)=>s+r.rating,0)/gp.length).toFixed(1):'—'}★</span></div><div class="bt"><div class="bf" style="width:${gp.length/tt2*100}%;background:#2e7d32"></div></div></div>
-    <div class="bar-h" style="margin-top:16px"><div class="bl"><span>🍎 App Store</span><span>${as.length} · ${as.length?(as.reduce((s,r)=>s+r.rating,0)/as.length).toFixed(1):'—'}★</span></div><div class="bt"><div class="bf" style="width:${as.length/tt2*100}%;background:#1565c0"></div></div></div>`;
+    <div class="bar-h"><div class="bl"><span>🤖 Google Play</span><span>${gp.length} · ${gp.length?(gp.reduce((s,r)=>s+r.rating,0)/gp.length).toFixed(1):'--'}★</span></div><div class="bt"><div class="bf" style="width:${gp.length/tt2*100}%;background:#2e7d32"></div></div></div>
+    <div class="bar-h" style="margin-top:16px"><div class="bl"><span>🍎 App Store</span><span>${as.length} · ${as.length?(as.reduce((s,r)=>s+r.rating,0)/as.length).toFixed(1):'--'}★</span></div><div class="bt"><div class="bf" style="width:${as.length/tt2*100}%;background:#1565c0"></div></div></div>`;
 
   const pp={'Высокий':0,'Средний':0,'Низкий':0};d.forEach(r=>{if(pp[r.priority]!==undefined)pp[r.priority]++});
   const pcl={'Высокий':'var(--red)','Средний':'var(--amber)','Низкий':'var(--green)'};
@@ -478,7 +478,7 @@ function renderReviews(){
   renderClusters(d);
 }
 
-// ═══ BUG CLUSTERS ═══
+// --- BUG CLUSTERS ---
 const THEMES=[{id:'scan',t:'Сканирование / Биометрия',i:'📷',k:['скан','фото','верификац','лиц','биометр','камер','распознав','селфи']},{id:'docs',t:'Документы',i:'📄',k:['документ','паспорт','удостоверен','справк','файл','загрузк','pdf']},{id:'auth',t:'Авторизация / Вход',i:'🔐',k:['вход','войти','авториз','пароль','регистрац','аккаунт','смс','код','эцп','токен']},{id:'egov',t:'eGov / Госуслуги',i:'🏛️',k:['egov','егов','госуслуг','e-gov','портал']},{id:'payment',t:'Финансовые операции',i:'💳',k:['оплат','платёж','штраф','налог','банк','карт','kaspi','каспи']},{id:'notif',t:'Уведомления',i:'🔔',k:['уведомлен','push','пуш','нотификац','оповещен']},{id:'ux',t:'Интерфейс / UX',i:'🎨',k:['интерфейс','кнопк','навигац','неудобн','тормоз','виснет','зависа','глючи','ошибк']},{id:'other',t:'Другое',i:'❓',k:[]}];
 function classify(text){const l=text.toLowerCase(),m=[];for(const t of THEMES){if(t.id==='other')continue;for(const k of t.k){if(l.includes(k)){m.push(t.id);break;}}}return m.length?m:['other'];}
 function renderClusters(data){
@@ -499,7 +499,7 @@ function renderClusters(data){
   }).join('');
 }
 
-// ═══ СОБЫТИЯ ═══
+// --- СОБЫТИЯ ---
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click',()=>{
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
