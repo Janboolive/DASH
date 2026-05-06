@@ -17,7 +17,6 @@ except ImportError: install("playwright"); from playwright.sync_api import sync_
 # КОНФИГ
 # ════════════════════════════════════════
 SUPABASE_URL = "https://tejovvbopyrnmdevpzyy.supabase.co"
-import os
 SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 
 GOOGLE_PLAY_ID       = "com.qazeta"
@@ -339,3 +338,49 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# ════════════════════════════════════════
+# CSAT из продовой БД → Supabase
+# ════════════════════════════════════════
+PROD_DB = {
+    "host":     "10.10.1.19",
+    "port":     5432,
+    "dbname":   "qazeta",
+    "user":     "support",
+    "password": "Eanav?QmHf#e",
+}
+
+def fetch_and_sync_csat():
+    print("\n📊 CSAT из продовой БД...")
+    try:
+        import psycopg2
+    except ImportError:
+        install("psycopg2-binary")
+        import psycopg2
+
+    try:
+        conn = psycopg2.connect(**PROD_DB)
+        cur  = conn.cursor()
+        cur.execute("""
+            SELECT csat_score, COUNT(*) AS cnt, platform
+            FROM qazeta.csat.csats
+            GROUP BY csat_score, platform
+            ORDER BY csat_score
+        """)
+        rows = cur.fetchall()
+        cur.close(); conn.close()
+        print(f"  Получено {len(rows)} строк из продовой БД")
+    except Exception as e:
+        print(f"  ⚠️  Ошибка подключения к продовой БД: {e}")
+        return 0
+
+    # Сохраняем в Supabase таблицу csat_stats
+    records = [{"platform": r[2] or "unknown", "csat_score": r[0], "count": r[1]} for r in rows]
+    total = 0
+    for i in range(0, len(records), 50):
+        result = sb_request("POST", "csat_stats", records[i:i+50])
+        if result is not None:
+            total += len(records[i:i+50])
+
+    print(f"  ✅ CSAT синхронизировано: {total} строк")
+    return total
