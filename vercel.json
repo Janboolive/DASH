@@ -1,7 +1,9 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/*.py", "use": "@vercel/python" },
+    { "src": "api/stats.py", "use": "@vercel/python" },
+    { "src": "api/reviews.py", "use": "@vercel/python" },
+    { "src": "api/csat.py", "use": "@vercel/python" },
     { "src": "index.html", "use": "@vercel/static" }
   ],
   "routes": [
