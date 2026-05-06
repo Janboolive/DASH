@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>QazETA Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#f5f6f8;--card:#fff;--text:#1a1a2e;--text2:#5a5a72;--text3:#8e8ea0;--border:#e8e8ee;
+--accent:#4361ee;--red:#e63946;--red-l:#fdeaec;--green:#2d9e6b;--green-l:#e8f7f0;
+--amber:#e89c0e;--amber-l:#fef6e0;--purple:#7c3aed;--purple-l:#f0ebff;
+--teal:#0891b2;--teal-l:#e6f7fa;--cyan:#06b6d4;--indigo:#4f46e5;--radius:12px}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.header{background:#fff;border-bottom:1px solid var(--border);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.header h1{font-size:20px;font-weight:700;display:flex;align-items:center;gap:10px}
+.header h1 span{background:var(--accent);color:#fff;font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600}
+.header-right{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.sync-info{font-size:12px;color:var(--text3)}
+.sync-info b{color:var(--green)}
+.refresh-btn{font-size:13px;font-weight:600;padding:8px 18px;border-radius:20px;border:none;background:var(--accent);color:#fff;cursor:pointer;display:flex;align-items:center;gap:6px;transition:opacity .2s}
+.refresh-btn:hover{opacity:.85}.refresh-btn:disabled{opacity:.5;cursor:not-allowed}
+.refresh-btn .spin{animation:spin .8s linear infinite;display:none}
+.refresh-btn.loading .spin{display:inline}.refresh-btn.loading .icon{display:none}
+.container{max-width:1400px;margin:0 auto;padding:20px 32px 40px}
+
+/* ── CSAT СВОДНАЯ КАРТОЧКА ── */
+.csat-summary{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);border-radius:var(--radius);padding:24px 32px;margin-bottom:24px;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px;border:1px solid #2a2a4a}
+.csat-left .csat-title{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#8e8ea0;margin-bottom:8px}
+.csat-left .csat-total{font-size:42px;font-weight:700;line-height:1}
+.csat-left .csat-sub{font-size:13px;color:#8e8ea0;margin-top:4px}
+.csat-avg-wrap{display:flex;align-items:center;gap:12px}
+.csat-avg-circle{width:80px;height:80px;border-radius:50%;background:conic-gradient(#4361ee 0%,#1a1a2e 0%);display:flex;align-items:center;justify-content:center;flex-direction:column;position:relative}
+.csat-avg-circle::before{content:'';position:absolute;width:60px;height:60px;border-radius:50%;background:#16213e}
+.csat-avg-val{font-size:20px;font-weight:700;position:relative;z-index:1}
+.csat-avg-label{font-size:9px;color:#8e8ea0;position:relative;z-index:1;text-transform:uppercase}
+.csat-stars{display:flex;gap:2px;margin-top:4px}
+.csat-star{font-size:18px;opacity:.3}.csat-star.on{opacity:1}
+.csat-breakdown{display:flex;gap:24px;flex-wrap:wrap}
+.csat-source{text-align:center}
+.csat-source .cs-val{font-size:22px;font-weight:700}
+.csat-source .cs-avg{font-size:13px;color:#8e8ea0;margin-top:2px}
+.csat-source .cs-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-top:4px;padding:3px 10px;border-radius:20px;display:inline-block}
+.cs-csat{background:#4361ee22;color:#7b93ff}
+.cs-gp{background:#2d9e6b22;color:#5fd4a0}
+.cs-as{background:#06b6d422;color:#67d8f5}
+.csat-divider{width:1px;background:#2a2a4a;align-self:stretch}
+
+.tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:24px}
+.tab-btn{font-size:13px;font-weight:600;padding:10px 22px;border:none;background:none;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-panel{display:none}.tab-panel.active{display:block}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;margin-bottom:24px}
+.metric{background:var(--card);border-radius:var(--radius);padding:20px 24px;border:1px solid var(--border);position:relative;overflow:hidden}
+.metric::after{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.metric.m-dl::after{background:var(--cyan)}.metric.m-active::after{background:var(--green)}
+.metric.m-ui::after{background:var(--indigo)}.metric.m-uu::after{background:var(--amber)}
+.metric.m-del::after{background:var(--red)}.metric.m-total::after{background:var(--accent)}
+.metric.m-rating::after{background:var(--amber)}.metric.m-bug::after{background:var(--red)}
+.metric.m-praise::after{background:var(--green)}.metric.m-crit::after{background:var(--purple)}
+.metric .label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:600;margin-bottom:8px}
+.metric .value{font-size:30px;font-weight:700;line-height:1}
+.metric .sub{font-size:12px;color:var(--text3);margin-top:6px}
+.delta{display:inline-flex;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px}
+.delta-up{background:var(--green-l);color:var(--green)}.delta-down{background:var(--red-l);color:var(--red)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+.grid-3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:20px;margin-bottom:24px}
+.grid-3-eq{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:24px}
+@media(max-width:900px){.grid-2,.grid-3,.grid-3-eq{grid-template-columns:1fr}.csat-summary{flex-direction:column}.csat-breakdown{gap:16px}}
+.card{background:var(--card);border-radius:var(--radius);padding:24px;border:1px solid var(--border)}
+.card h2{font-size:14px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.badge{font-size:11px;font-weight:500;color:var(--text3);background:var(--bg);padding:3px 10px;border-radius:20px}
+.chart-wrap{position:relative;height:250px}
+.filter-row{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.filter-btn{font-size:12px;padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:var(--card);cursor:pointer;font-weight:500;color:var(--text2);transition:all .2s}
+.filter-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.stars{display:inline-flex;gap:1px}
+.star{width:13px;height:13px;fill:var(--border)}.star.f{fill:var(--amber)}
+.bar-h{margin-bottom:12px}
+.bar-h .bl{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;color:var(--text2)}
+.bar-h .bt{height:8px;background:var(--bg);border-radius:4px;overflow:hidden}
+.bar-h .bf{height:100%;border-radius:4px;transition:width .6s}
+.review-list{max-height:380px;overflow-y:auto;scrollbar-width:thin}
+.ri{padding:12px 0;border-bottom:1px solid var(--border)}.ri:last-child{border-bottom:none}
+.ri-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.ri-author{font-size:13px;font-weight:600}.ri-date{font-size:11px;color:var(--text3)}
+.ri-text{font-size:13px;color:var(--text2);line-height:1.5}
+.ri-meta{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;align-items:center}
+.tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:12px;text-transform:uppercase}
+.tag-bug{background:var(--red-l);color:var(--red)}.tag-ux{background:var(--purple-l);color:var(--purple)}
+.tag-praise{background:var(--green-l);color:var(--green)}.tag-q{background:var(--teal-l);color:var(--teal)}
+.tag-hi{background:var(--red-l);color:var(--red)}.tag-med{background:var(--amber-l);color:var(--amber)}
+.tag-lo{background:var(--green-l);color:var(--green)}
+.pb{display:inline-flex;font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px}
+.pb-gp{background:#e8f5e9;color:#2e7d32}.pb-as{background:#e3f2fd;color:#1565c0}
+.funnel{display:flex;flex-direction:column;gap:10px;padding:4px 0}
+.fs{display:flex;align-items:center;gap:10px}
+.fl{font-size:12px;font-weight:600;color:var(--text2);width:140px;flex-shrink:0}
+.fw{flex:1}.fb{height:32px;border-radius:6px;display:flex;align-items:center;padding:0 12px;font-size:12px;font-weight:700;color:#fff;min-width:50px}
+.fp{font-size:11px;background:var(--bg);color:var(--text3);padding:2px 8px;border-radius:12px;font-weight:600;flex-shrink:0;min-width:42px;text-align:center}
+.stat-table{width:100%;border-collapse:collapse;font-size:13px}
+.stat-table th{text-align:left;padding:8px 12px;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;border-bottom:2px solid var(--border)}
+.stat-table td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text2)}
+.stat-table tr:last-child td{border-bottom:none}
+.stat-table tr:hover td{background:#fafafa}
+.td-n{font-weight:700;color:var(--text)}
+.clusters-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px}
+.cc{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden}
+.cc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--red)}
+.cc-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.cc-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}
+.cc-cnt{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--red-l);color:var(--red)}
+.cc-desc{font-size:12px;color:var(--text3);margin-bottom:10px}
+.cr{background:var(--bg);border-radius:8px;padding:10px 12px;font-size:12px;border-left:3px solid var(--red);margin-bottom:6px}
+.cr-head{display:flex;justify-content:space-between;margin-bottom:3px}
+.cr-a{font-weight:600;font-size:11px}.cr-d{font-size:10px;color:var(--text3)}
+.ce{font-size:11px;color:var(--accent);cursor:pointer;font-weight:600;margin-top:6px;display:inline-block}
+.sdot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
+.sdot-c{background:var(--red)}.sdot-m{background:var(--amber)}.sdot-l{background:var(--green)}
+.loading-overlay{display:flex;align-items:center;justify-content:center;padding:60px;flex-direction:column;gap:16px}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.platform-row{display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+.platform-card{flex:1;min-width:120px;background:var(--bg);border-radius:8px;padding:14px 16px;text-align:center}
+.platform-card .pc-val{font-size:22px;font-weight:700}
+.platform-card .pc-label{font-size:11px;color:var(--text3);margin-top:2px;font-weight:600;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>QazETA <span>АНАЛИТИКА</span></h1>
+  <div class="header-right">
+    <div class="sync-info">Обновлено: <b id="sync-time">—</b></div>
+    <button class="refresh-btn" id="refresh-btn" onclick="loadAll()">
+      <span class="icon">🔄</span>
+      <svg class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+      Обновить
+    </button>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ══ CSAT СВОДНАЯ КАРТОЧКА ══ -->
+  <div class="csat-summary" id="csat-summary">
+    <div class="loading-overlay" style="padding:0;flex-direction:row;gap:12px">
+      <div class="spinner"></div>
+      <span style="font-size:13px;color:#8e8ea0">Загружаем общую статистику...</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="stats">📊 Статистика</button>
+    <button class="tab-btn" data-tab="reviews">📝 Отзывы</button>
+  </div>
+
+  <!-- STATS TAB -->
+  <div class="tab-panel active" id="tab-stats">
+    <div id="stats-loading" class="loading-overlay"><div class="spinner"></div><div style="font-size:14px;color:var(--text3)">Загружаем статистику...</div></div>
+    <div id="stats-content" style="display:none">
+      <div class="filter-row">
+        <button class="filter-btn sf active" data-sf="all">Всё время</button>
+        <button class="filter-btn sf" data-sf="30">30 дней</button>
+        <button class="filter-btn sf" data-sf="60">60 дней</button>
+        <button class="filter-btn sf" data-sf="90">90 дней</button>
+      </div>
+      <div class="metrics" id="stat-metrics"></div>
+      <div class="grid-2">
+        <div class="card"><h2>📥 Скачивания по неделям <span class="badge" id="dl-badge"></span></h2><div class="chart-wrap"><canvas id="chart-dl"></canvas></div></div>
+        <div class="card"><h2>📊 App Store vs Google Play</h2>
+          <div class="platform-row" id="platform-row"></div>
+          <div class="chart-wrap" style="height:190px"><canvas id="chart-stores"></canvas></div>
+        </div>
+      </div>
+      <div class="grid-3-eq">
+        <div class="card"><h2>🔽 Воронка</h2><div class="funnel" id="funnel"></div></div>
+        <div class="card"><h2>📈 Активные устройства</h2><div class="chart-wrap"><canvas id="chart-active"></canvas></div></div>
+        <div class="card"><h2>🗑️ Удаления</h2><div class="chart-wrap"><canvas id="chart-del"></canvas></div></div>
+      </div>
+      <div class="card" style="margin-bottom:24px">
+        <h2>📋 По неделям <span class="badge" id="table-badge"></span></h2>
+        <div style="overflow-x:auto"><table class="stat-table">
+          <thead><tr><th>Неделя</th><th>Установки</th><th>App Store</th><th>Google Play</th><th>Удаления</th><th>Активные</th><th>User Installs</th><th>User Uninstalls</th></tr></thead>
+          <tbody id="stat-tbody"></tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REVIEWS TAB -->
+  <div class="tab-panel" id="tab-reviews">
+    <div id="rv-loading" class="loading-overlay"><div class="spinner"></div><div style="font-size:14px;color:var(--text3)">Загружаем отзывы...</div></div>
+    <div id="rv-content" style="display:none">
+      <div class="filter-row">
+        <button class="filter-btn rv active" data-rf="all">Все</button>
+        <button class="filter-btn rv" data-rf="7">7 дней</button>
+        <button class="filter-btn rv" data-rf="30">30 дней</button>
+        <button class="filter-btn rv" data-rf="90">90 дней</button>
+        <select id="filter-plat" style="font-size:12px;padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:var(--card);color:var(--text2);cursor:pointer">
+          <option value="all">Все платформы</option>
+          <option value="Google Play">Google Play</option>
+          <option value="App Store">App Store</option>
+        </select>
+      </div>
+      <div class="metrics" id="rv-metrics"></div>
+      <div class="grid-2">
+        <div class="card"><h2>Динамика по неделям</h2><div class="chart-wrap"><canvas id="chart-rv-trend"></canvas></div></div>
+        <div class="card"><h2>Оценки</h2><div class="chart-wrap"><canvas id="chart-rv-ratings"></canvas></div></div>
+      </div>
+      <div class="grid-3">
+        <div class="card"><h2>Категории</h2><div class="chart-wrap"><canvas id="chart-rv-cats"></canvas></div></div>
+        <div class="card"><h2>По платформам</h2><div id="rv-plat-bars"></div></div>
+        <div class="card"><h2>Приоритеты</h2><div id="rv-prio-bars"></div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card"><h2>🔴 Критичные отзывы</h2><div class="review-list" id="rv-crit"></div></div>
+        <div class="card"><h2>🟢 Позитивные отзывы</h2><div class="review-list" id="rv-pos"></div></div>
+      </div>
+      <div class="card" style="margin-bottom:24px">
+        <h2>🔥 Баги по темам <span class="badge" id="cl-badge"></span></h2>
+        <div class="clusters-grid" id="clusters"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let INSTALLS=[], ALL_REVIEWS=[], CSAT={total:0,avg:0,platforms:[]}, charts={}, sfDays='all', rfDays='all', rfPlat='all';
+
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const num=n=>n>=10000?(n/1000).toFixed(0)+'K':n>=1000?(n/1000).toFixed(1)+'K':String(n||0);
+const pct=(a,b)=>b?Math.round(a/b*100):0;
+const fmtD=d=>{try{return new Date(d).toLocaleDateString('ru',{day:'numeric',month:'short',year:'numeric'})}catch{return d}};
+const fmtS=d=>{try{return new Date(d).toLocaleDateString('ru',{day:'numeric',month:'short'})}catch{return d}};
+function stars(n){let h='';for(let i=1;i<=5;i++)h+=`<svg class="star ${i<=Math.round(n)?'f':''}" viewBox="0 0 20 20"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.69l5.34-.78z"/></svg>`;return'<span class="stars">'+h+'</span>'}
+
+// ═══ ЗАГРУЗКА ═══
+async function loadAll(){
+  const btn=document.getElementById('refresh-btn');
+  btn.classList.add('loading');btn.disabled=true;
+  await Promise.allSettled([loadCsat(), loadStats(), loadReviews()]);
+  btn.classList.remove('loading');btn.disabled=false;
+}
+
+async function loadCsat(){
+  try{
+    const r=await fetch('/api/csat');
+    CSAT=await r.json();
+    renderCsatCard();
+  }catch(e){
+    document.getElementById('csat-summary').innerHTML=`<span style="color:#8e8ea0;font-size:13px">CSAT недоступен: ${e.message}</span>`;
+  }
+}
+
+async function loadStats(){
+  try{
+    const r=await fetch('/api/stats');
+    const json=await r.json();
+    INSTALLS=(json.installs||[]).sort((a,b)=>a.date.localeCompare(b.date));
+    if(json.last_sync){
+      const d=new Date(json.last_sync.synced_at);
+      document.getElementById('sync-time').textContent=d.toLocaleString('ru',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+    }
+    document.getElementById('stats-loading').style.display='none';
+    document.getElementById('stats-content').style.display='block';
+    renderStats();
+  }catch(e){
+    document.getElementById('stats-loading').innerHTML=`<div style="color:var(--red);text-align:center"><b>Ошибка</b><br>${e.message}<br><small>Запусти collector.py</small></div>`;
+  }
+}
+
+async function loadReviews(){
+  try{
+    const r=await fetch('/api/reviews');
+    ALL_REVIEWS=await r.json();
+    ALL_REVIEWS.sort((a,b)=>b.date.localeCompare(a.date));
+    document.getElementById('rv-loading').style.display='none';
+    document.getElementById('rv-content').style.display='block';
+    renderReviews();
+  }catch(e){
+    document.getElementById('rv-loading').innerHTML=`<div style="color:var(--red);text-align:center"><b>Ошибка</b><br>${e.message}</div>`;
+  }
+}
+
+// ═══ CSAT КАРТОЧКА ═══
+function renderCsatCard(){
+  // Считаем суммарное по всем источникам
+  const csatTotal  = CSAT.total || 0;
+  const csatAvg    = CSAT.avg   || 0;
+
+  // App Store и Google Play из отзывов
+  const gpCount = ALL_REVIEWS.filter(r=>r.source==='Google Play').length;
+  const asCount = ALL_REVIEWS.filter(r=>r.source==='App Store').length;
+  const gpAvg   = gpCount ? (ALL_REVIEWS.filter(r=>r.source==='Google Play').reduce((s,r)=>s+r.rating,0)/gpCount).toFixed(1) : 0;
+  const asAvg   = asCount ? (ALL_REVIEWS.filter(r=>r.source==='App Store').reduce((s,r)=>s+r.rating,0)/asCount).toFixed(1) : 0;
+
+  const grandTotal = csatTotal + gpCount + asCount;
+
+  // Средневзвешенная оценка
+  const weightedSum = (csatAvg * csatTotal) + (parseFloat(gpAvg) * gpCount) + (parseFloat(asAvg) * asCount);
+  const overallAvg  = grandTotal ? (weightedSum / grandTotal).toFixed(2) : 0;
+
+  // Прогресс круга (из 5)
+  const pct5 = Math.round((overallAvg / 5) * 100);
+  const conic = `conic-gradient(#4361ee ${pct5}%, #2a2a4a ${pct5}%)`;
+
+  // Звёзды CSAT
+  const csatStars = Array.from({length:5},(_,i)=>`<span class="csat-star ${i<Math.round(overallAvg)?'on':''}">★</span>`).join('');
+
+  document.getElementById('csat-summary').innerHTML=`
+    <div class="csat-left">
+      <div class="csat-title">📊 Общая статистика отзывов</div>
+      <div class="csat-total">${grandTotal.toLocaleString()}</div>
+      <div class="csat-sub">CSAT + App Store + Google Play</div>
+    </div>
+
+    <div class="csat-avg-wrap">
+      <div>
+        <div class="csat-avg-circle" style="background:${conic}">
+          <span class="csat-avg-val">${overallAvg}</span>
+          <span class="csat-avg-label">/ 5.00</span>
+        </div>
+        <div style="text-align:center;margin-top:6px">
+          <div class="csat-stars">${csatStars}</div>
+          <div style="font-size:11px;color:#8e8ea0;margin-top:2px">Среднее</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="csat-divider"></div>
+
+    <div class="csat-breakdown">
+      <div class="csat-source">
+        <div class="cs-val">${csatTotal.toLocaleString()}</div>
+        <div class="cs-avg">★ ${csatAvg}</div>
+        <div class="cs-label cs-csat">CSAT</div>
+      </div>
+      <div class="csat-source">
+        <div class="cs-val">${gpCount.toLocaleString()}</div>
+        <div class="cs-avg">★ ${gpAvg}</div>
+        <div class="cs-label cs-gp">Google Play</div>
+      </div>
+      <div class="csat-source">
+        <div class="cs-val">${asCount.toLocaleString()}</div>
+        <div class="cs-avg">★ ${asAvg}</div>
+        <div class="cs-label cs-as">App Store</div>
+      </div>
+    </div>`;
+}
+
+// ═══ СТАТИСТИКА ═══
+function getStatsFiltered(){
+  let d=[...INSTALLS];
+  if(sfDays!=='all'){const c=new Date();c.setDate(c.getDate()-parseInt(sfDays));const s=c.toISOString().slice(0,10);d=d.filter(r=>r.date>=s);}
+  return d;
+}
+
+function aggWeeks(data){
+  const w={};
+  data.forEach(r=>{
+    const d=new Date(r.date),m=new Date(d);m.setDate(d.getDate()-d.getDay()+1);
+    const k=m.toISOString().slice(0,10);
+    if(!w[k])w[k]={dl:0,asc:0,play:0,del:0,active:0,ui:0,uu:0};
+    w[k].dl+=r.downloads||0;w[k].asc+=r.asc_downloads||0;w[k].play+=r.play_downloads||0;
+    w[k].del+=r.deleted||0;w[k].active=Math.max(w[k].active,r.active||0);
+    w[k].ui+=r.user_installs||0;w[k].uu+=r.user_uninstalls||0;
+  });
+  const keys=Object.keys(w).sort();
+  return{keys,w,labels:keys.map(k=>fmtS(k))};
+}
+
+function renderStats(){
+  const d=getStatsFiltered();
+  if(!d.length)return;
+  const totDl=d.reduce((s,r)=>s+(r.downloads||0),0);
+  const totAsc=d.reduce((s,r)=>s+(r.asc_downloads||0),0);
+  const totPlay=d.reduce((s,r)=>s+(r.play_downloads||0),0);
+  const totDel=d.reduce((s,r)=>s+(r.deleted||0),0);
+  const totUI=d.reduce((s,r)=>s+(r.user_installs||0),0);
+  const totUU=d.reduce((s,r)=>s+(r.user_uninstalls||0),0);
+  const maxActive=Math.max(...d.map(r=>r.active||0));
+  const half=Math.floor(d.length/2);
+  const diff=d.slice(half).reduce((s,r)=>s+(r.downloads||0),0)-d.slice(0,half).reduce((s,r)=>s+(r.downloads||0),0);
+  const trend=diff>=0?`<span class="delta delta-up">▲ +${diff}</span>`:`<span class="delta delta-down">▼ ${diff}</span>`;
+
+  document.getElementById('stat-metrics').innerHTML=`
+    <div class="metric m-dl"><div class="label">📥 Установки</div><div class="value">${num(totDl)}</div><div class="sub">${trend} тренд</div></div>
+    <div class="metric m-active"><div class="label">⚡ Активные устр.</div><div class="value">${num(maxActive)}</div><div class="sub">пик за период</div></div>
+    <div class="metric m-ui"><div class="label">👤 User Installs</div><div class="value">${num(totUI)}</div><div class="sub">новых пользователей</div></div>
+    <div class="metric m-uu"><div class="label">🔄 User Uninstalls</div><div class="value">${num(totUU)}</div><div class="sub">${pct(totUU,totUI)}% от установок</div></div>
+    <div class="metric m-del"><div class="label">🗑️ Удаления</div><div class="value">${num(totDel)}</div><div class="sub">${pct(totDel,totDl)}% от скачиваний</div></div>`;
+
+  document.getElementById('platform-row').innerHTML=`
+    <div class="platform-card"><div class="pc-val" style="color:#06b6d4">${num(totAsc)}</div><div class="pc-label">🍎 App Store</div></div>
+    <div class="platform-card"><div class="pc-val" style="color:#2d9e6b">${num(totPlay)}</div><div class="pc-label">🤖 Google Play</div></div>
+    <div class="platform-card"><div class="pc-val" style="color:#e89c0e">${pct(totAsc,totDl)}% / ${pct(totPlay,totDl)}%</div><div class="pc-label">AS / GP доля</div></div>`;
+
+  const {keys,w,labels}=aggWeeks(d);
+  if(charts.dl)charts.dl.destroy();
+  charts.dl=new Chart(document.getElementById('chart-dl'),{type:'bar',data:{labels,datasets:[
+    {label:'App Store',data:keys.map(k=>w[k].asc),backgroundColor:'#06b6d455',borderColor:'#06b6d4',borderWidth:2,borderRadius:4},
+    {label:'Google Play',data:keys.map(k=>w[k].play),backgroundColor:'#2d9e6b55',borderColor:'#2d9e6b',borderWidth:2,borderRadius:4}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{usePointStyle:true,padding:12,font:{size:11}}}},scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:9}}},y:{stacked:true,beginAtZero:true,grid:{color:'#f0f0f5'},ticks:{font:{size:10}}}}}});
+
+  const dlArr=keys.map(k=>w[k].dl);
+  if(keys.length>=2)document.getElementById('dl-badge').textContent=(dlArr[dlArr.length-1]-dlArr[dlArr.length-2]>=0?'+':'')+(dlArr[dlArr.length-1]-dlArr[dlArr.length-2])+' vs пред.нед.';
+
+  if(charts.stores)charts.stores.destroy();
+  charts.stores=new Chart(document.getElementById('chart-stores'),{type:'doughnut',data:{labels:['App Store','Google Play'],datasets:[{data:[totAsc,totPlay],backgroundColor:['#06b6d4','#2d9e6b'],borderWidth:3,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'bottom',labels:{usePointStyle:true,padding:12,font:{size:11}}}}}}}); 
+
+  const steps=[{l:'📥 Скачали',v:totDl,c:'#06b6d4',b:totDl},{l:'👤 User Installs',v:totUI,c:'#4361ee',b:totDl},{l:'⚡ Активные (пик)',v:maxActive,c:'#2d9e6b',b:totDl},{l:'🗑️ Удалились',v:totUU,c:'#e63946',b:totUI}];
+  document.getElementById('funnel').innerHTML=steps.map(s=>{const p=s.b?Math.round(s.v/s.b*100):0,ww=Math.max(14,p);return`<div class="fs"><div class="fl">${s.l}</div><div class="fw"><div class="fb" style="width:${ww}%;background:${s.c}">${num(s.v)}</div></div><div class="fp">${p}%</div></div>`;}).join('');
+
+  if(charts.active)charts.active.destroy();
+  charts.active=new Chart(document.getElementById('chart-active'),{type:'line',data:{labels:d.map(r=>fmtS(r.date)),datasets:[{label:'Активные',data:d.map(r=>r.active||0),borderColor:'#2d9e6b',backgroundColor:'#2d9e6b20',pointRadius:0,borderWidth:2,tension:.4,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:9},maxTicksLimit:8}},y:{beginAtZero:false,grid:{color:'#f0f0f5'},ticks:{font:{size:10}}}}}}}); 
+
+  if(charts.del)charts.del.destroy();
+  charts.del=new Chart(document.getElementById('chart-del'),{type:'bar',data:{labels,datasets:[{label:'User Uninstalls',data:keys.map(k=>w[k].uu),backgroundColor:'#e6394655',borderColor:'#e63946',borderWidth:2,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{beginAtZero:true,grid:{color:'#f0f0f5'},ticks:{font:{size:10}}}}}}});
+
+  document.getElementById('table-badge').textContent=`${keys.length} недель`;
+  document.getElementById('stat-tbody').innerHTML=keys.slice().reverse().slice(0,12).map(k=>{const e=w[k];return`<tr><td><b>${fmtS(k)}</b></td><td class="td-n">${e.dl.toLocaleString()}</td><td style="color:#06b6d4;font-weight:600">${e.asc.toLocaleString()}</td><td style="color:#2d9e6b;font-weight:600">${e.play.toLocaleString()}</td><td style="color:#e63946;font-weight:600">${e.del.toLocaleString()}</td><td class="td-n">${e.active.toLocaleString()}</td><td style="color:#4361ee;font-weight:600">${e.ui.toLocaleString()}</td><td style="color:#e89c0e;font-weight:600">${e.uu.toLocaleString()}</td></tr>`;}).join('');
+}
+
+// ═══ ОТЗЫВЫ ═══
+function getRevFiltered(){
+  let d=[...ALL_REVIEWS];
+  if(rfPlat!=='all')d=d.filter(r=>r.source===rfPlat);
+  if(rfDays!=='all'){const c=new Date();c.setDate(c.getDate()-parseInt(rfDays));const s=c.toISOString().slice(0,10);d=d.filter(r=>r.date>=s);}
+  return d;
+}
+
+function renderReviews(){
+  const d=getRevFiltered(),t=d.length;
+  const avg=t?(d.reduce((s,r)=>s+r.rating,0)/t).toFixed(1):'—';
+  const bugs=d.filter(r=>r.category==='Баг').length,praise=d.filter(r=>r.category==='Похвала').length,crit=d.filter(r=>r.priority==='Высокий').length;
+
+  document.getElementById('rv-metrics').innerHTML=`
+    <div class="metric m-total"><div class="label">Всего отзывов</div><div class="value">${t}</div><div class="sub">GP: ${d.filter(r=>r.source==='Google Play').length} · AS: ${d.filter(r=>r.source==='App Store').length}</div></div>
+    <div class="metric m-rating"><div class="label">Средняя оценка</div><div class="value">${avg} <span style="font-size:14px;color:var(--text3)">/5</span></div><div class="sub">${stars(parseFloat(avg)||0)}</div></div>
+    <div class="metric m-bug"><div class="label">Баги</div><div class="value">${bugs}</div><div class="sub">${pct(bugs,t)}% от всех</div></div>
+    <div class="metric m-praise"><div class="label">Похвала</div><div class="value">${praise}</div><div class="sub">${pct(praise,t)}% от всех</div></div>
+    <div class="metric m-crit"><div class="label">Критичных</div><div class="value">${crit}</div><div class="sub">${pct(crit,t)}% от всех</div></div>`;
+
+  // Обновляем CSAT карточку с учётом фильтрованных отзывов
+  renderCsatCard();
+
+  const w={};d.forEach(r=>{const dd=new Date(r.date),m=new Date(dd);m.setDate(dd.getDate()-dd.getDay()+1);const k=m.toISOString().slice(0,10);if(!w[k])w[k]={t:0,b:0,s:0};w[k].t++;w[k].s+=r.rating;if(r.category==='Баг')w[k].b++});
+  const sk=Object.keys(w).sort();
+  if(charts.rvt)charts.rvt.destroy();
+  charts.rvt=new Chart(document.getElementById('chart-rv-trend'),{type:'bar',data:{labels:sk.map(k=>fmtS(k)),datasets:[{label:'Всего',data:sk.map(k=>w[k].t),backgroundColor:'#4361ee33',borderColor:'#4361ee',borderWidth:2,borderRadius:4,order:2},{label:'Баги',data:sk.map(k=>w[k].b),backgroundColor:'#e6394633',borderColor:'#e63946',borderWidth:2,borderRadius:4,order:2},{label:'Ср. оценка',data:sk.map(k=>(w[k].s/w[k].t).toFixed(1)),type:'line',borderColor:'#e89c0e',backgroundColor:'#e89c0e',pointRadius:3,borderWidth:2,yAxisID:'y1',tension:.3,order:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{usePointStyle:true,padding:12,font:{size:11}}}},scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{beginAtZero:true,grid:{color:'#f0f0f5'},ticks:{font:{size:10}}},y1:{position:'right',min:0,max:5,grid:{display:false},ticks:{font:{size:10},callback:v=>v.toFixed(1)}}}}}});
+
+  const rd=[0,0,0,0,0];d.forEach(r=>{if(r.rating>=1&&r.rating<=5)rd[r.rating-1]++});
+  if(charts.rvr)charts.rvr.destroy();
+  charts.rvr=new Chart(document.getElementById('chart-rv-ratings'),{type:'bar',data:{labels:['1','2','3','4','5'],datasets:[{data:rd,backgroundColor:['#e63946','#e8734a','#e89c0e','#82b54b','#2d9e6b'],borderRadius:6,borderSkipped:false}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#f0f0f5'},ticks:{font:{size:10}}},y:{grid:{display:false},ticks:{font:{size:12,weight:'bold'}}}}}}});
+
+  const cc={};d.forEach(r=>{cc[r.category]=(cc[r.category]||0)+1});
+  const ce=Object.entries(cc).sort((a,b)=>b[1]-a[1]);
+  const cm={'Баг':'#e63946','UX':'#7c3aed','Похвала':'#2d9e6b','Вопрос':'#0891b2'};
+  if(charts.rvc)charts.rvc.destroy();
+  charts.rvc=new Chart(document.getElementById('chart-rv-cats'),{type:'doughnut',data:{labels:ce.map(x=>x[0]),datasets:[{data:ce.map(x=>x[1]),backgroundColor:ce.map(x=>cm[x[0]]||'#8e8ea0'),borderWidth:3,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'bottom',labels:{usePointStyle:true,padding:10,font:{size:11}}}}}}}); 
+
+  const gp=d.filter(r=>r.source==='Google Play'),as=d.filter(r=>r.source==='App Store'),tt2=d.length||1;
+  document.getElementById('rv-plat-bars').innerHTML=`
+    <div class="bar-h"><div class="bl"><span>🤖 Google Play</span><span>${gp.length} · ${gp.length?(gp.reduce((s,r)=>s+r.rating,0)/gp.length).toFixed(1):'—'}★</span></div><div class="bt"><div class="bf" style="width:${gp.length/tt2*100}%;background:#2e7d32"></div></div></div>
+    <div class="bar-h" style="margin-top:16px"><div class="bl"><span>🍎 App Store</span><span>${as.length} · ${as.length?(as.reduce((s,r)=>s+r.rating,0)/as.length).toFixed(1):'—'}★</span></div><div class="bt"><div class="bf" style="width:${as.length/tt2*100}%;background:#1565c0"></div></div></div>`;
+
+  const pp={'Высокий':0,'Средний':0,'Низкий':0};d.forEach(r=>{if(pp[r.priority]!==undefined)pp[r.priority]++});
+  const pcl={'Высокий':'var(--red)','Средний':'var(--amber)','Низкий':'var(--green)'};
+  document.getElementById('rv-prio-bars').innerHTML=Object.entries(pp).map(([k,v])=>`<div class="bar-h" style="margin-bottom:16px"><div class="bl"><span>${k}</span><span>${v} (${pct(v,t)}%)</span></div><div class="bt"><div class="bf" style="width:${pct(v,t)}%;background:${pcl[k]}"></div></div></div>`).join('');
+
+  const tc={'Баг':'tag-bug','UX':'tag-ux','Похвала':'tag-praise','Вопрос':'tag-q'};
+  const pc2={'Высокий':'tag-hi','Средний':'tag-med','Низкий':'tag-lo'};
+  function revList(items){if(!items.length)return'<div style="text-align:center;padding:40px;color:var(--text3)">Нет отзывов</div>';
+    return items.map(r=>`<div class="ri"><div class="ri-head"><span class="ri-author">${esc(r.author||'Аноним')}</span><span class="ri-date">${fmtD(r.date)}</span></div><div class="ri-text">${esc(r.text)}</div><div class="ri-meta">${stars(r.rating)}<span class="pb ${r.source==='Google Play'?'pb-gp':'pb-as'}">${r.source}</span><span class="tag ${tc[r.category]||''}">${r.category}</span><span class="tag ${pc2[r.priority]||''}">${r.priority}</span></div></div>`).join('')}
+  document.getElementById('rv-crit').innerHTML=revList(d.filter(r=>r.priority==='Высокий').slice(0,15));
+  document.getElementById('rv-pos').innerHTML=revList(d.filter(r=>r.category==='Похвала'||r.rating>=4).slice(0,15));
+  renderClusters(d);
+}
+
+// ═══ BUG CLUSTERS ═══
+const THEMES=[{id:'scan',t:'Сканирование / Биометрия',i:'📷',k:['скан','фото','верификац','лиц','биометр','камер','распознав','селфи']},{id:'docs',t:'Документы',i:'📄',k:['документ','паспорт','удостоверен','справк','файл','загрузк','pdf']},{id:'auth',t:'Авторизация / Вход',i:'🔐',k:['вход','войти','авториз','пароль','регистрац','аккаунт','смс','код','эцп','токен']},{id:'egov',t:'eGov / Госуслуги',i:'🏛️',k:['egov','егов','госуслуг','e-gov','портал']},{id:'payment',t:'Финансовые операции',i:'💳',k:['оплат','платёж','штраф','налог','банк','карт','kaspi','каспи']},{id:'notif',t:'Уведомления',i:'🔔',k:['уведомлен','push','пуш','нотификац','оповещен']},{id:'ux',t:'Интерфейс / UX',i:'🎨',k:['интерфейс','кнопк','навигац','неудобн','тормоз','виснет','зависа','глючи','ошибк']},{id:'other',t:'Другое',i:'❓',k:[]}];
+function classify(text){const l=text.toLowerCase(),m=[];for(const t of THEMES){if(t.id==='other')continue;for(const k of t.k){if(l.includes(k)){m.push(t.id);break;}}}return m.length?m:['other'];}
+function renderClusters(data){
+  const bugs=data.filter(r=>r.category==='Баг'||r.priority==='Высокий');
+  const cl={};THEMES.forEach(t=>{cl[t.id]={...t,reviews:[],hc:0}});
+  bugs.forEach(r=>{classify(r.text).forEach(tid=>{if(cl[tid]){cl[tid].reviews.push(r);if(r.priority==='Высокий')cl[tid].hc++}})});
+  const entries=Object.values(cl).filter(c=>c.reviews.length>0).sort((a,b)=>b.reviews.length-a.reviews.length);
+  document.getElementById('cl-badge').textContent=`${entries.length} тем · ${bugs.length} багов`;
+  document.getElementById('clusters').innerHTML=entries.map(c=>{
+    const avg=(c.reviews.reduce((s,r)=>s+r.rating,0)/c.reviews.length).toFixed(1);
+    const sc=c.hc>c.reviews.length*.5?'sdot-c':c.hc>0?'sdot-m':'sdot-l';
+    const sl=sc==='sdot-c'?'Критично':sc==='sdot-m'?'Средне':'Низко';
+    return`<div class="cc"><div class="cc-head"><div class="cc-title"><span>${c.i}</span>${esc(c.t)}</div><span class="cc-cnt">${c.reviews.length} жалоб</span></div>
+    <div class="cc-desc"><span class="sdot ${sc}"></span>${sl} · Ср. оценка: ${avg} ${stars(parseFloat(avg))}</div>
+    ${c.reviews.slice(0,2).map(r=>`<div class="cr"><div class="cr-head"><span class="cr-a">${esc(r.author||'Аноним')}</span><span class="cr-d">${fmtD(r.date)}</span></div><div>${esc(r.text)}</div></div>`).join('')}
+    ${c.reviews.length>2?`<span class="ce" data-id="${c.id}" data-rest="${c.reviews.length-2}">+ ещё ${c.reviews.length-2} отзывов</span>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ═══ СОБЫТИЯ ═══
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  });
+});
+document.querySelectorAll('.filter-btn.sf').forEach(b=>{b.addEventListener('click',()=>{document.querySelectorAll('.filter-btn.sf').forEach(x=>x.classList.remove('active'));b.classList.add('active');sfDays=b.dataset.sf;renderStats();});});
+document.querySelectorAll('.filter-btn.rv').forEach(b=>{b.addEventListener('click',()=>{document.querySelectorAll('.filter-btn.rv').forEach(x=>x.classList.remove('active'));b.classList.add('active');rfDays=b.dataset.rf;renderReviews();});});
+document.getElementById('filter-plat').addEventListener('change',e=>{rfPlat=e.target.value;renderReviews();});
+document.getElementById('clusters').addEventListener('click',e=>{
+  const btn=e.target.closest('.ce');if(!btn)return;
+  const card=btn.closest('.cc'),tid=btn.dataset.id,isExp=btn.dataset.exp==='1';
+  if(isExp){card.querySelectorAll('.cr-extra').forEach(x=>x.remove());btn.dataset.exp='0';btn.textContent=`+ ещё ${btn.dataset.rest} отзывов`;}
+  else{const bugs=getRevFiltered().filter(r=>r.category==='Баг'||r.priority==='Высокий').filter(r=>classify(r.text).includes(tid)).slice(2);
+    bugs.forEach(r=>{const d=document.createElement('div');d.className='cr cr-extra';d.innerHTML=`<div class="cr-head"><span class="cr-a">${esc(r.author||'Аноним')}</span><span class="cr-d">${fmtD(r.date)}</span></div><div>${esc(r.text)}</div>`;card.insertBefore(d,btn);});
+    btn.dataset.exp='1';btn.textContent='▲ Свернуть';}
+});
+
+loadAll();
+</script>
+</body>
+</html>
